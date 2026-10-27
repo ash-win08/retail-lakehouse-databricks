@@ -1,0 +1,525 @@
+{
+  "datasets": [
+    {
+      "name": "fdb786de",
+      "displayName": "kpis",
+      "queryLines": [
+        "SELECT COUNT(DISTINCT order_id) AS orders,\r\n",
+        "       ROUND(SUM(price), 2) AS revenue,\r\n",
+        "       ROUND(SUM(price) / COUNT(DISTINCT order_id), 2) AS avg_order_value,\r\n",
+        "       ROUND(100 * SUM(CASE WHEN is_late_delivery THEN 1 ELSE 0 END)\r\n",
+        "             / NULLIF(SUM(CASE WHEN is_late_delivery IS NOT NULL THEN 1 ELSE 0 END), 0), 1) AS late_delivery_pct\r\n",
+        "FROM workspace.gold.fact_sales\r\n",
+        "WHERE order_found AND order_status NOT IN ('canceled', 'unavailable');"
+      ]
+    },
+    {
+      "name": "a6995f46",
+      "displayName": "daily_revenue",
+      "queryLines": [
+        "SELECT order_date, revenue, orders\r\n",
+        "FROM workspace.gold.agg_daily_revenue\r\n",
+        "ORDER BY order_date;"
+      ]
+    },
+    {
+      "name": "1454a2b7",
+      "displayName": "top_categories",
+      "queryLines": [
+        "SELECT category, revenue\r\n",
+        "FROM workspace.gold.agg_category_revenue\r\n",
+        "ORDER BY revenue DESC LIMIT 10;"
+      ]
+    },
+    {
+      "name": "891c048f",
+      "displayName": "revenue_by_state",
+      "queryLines": [
+        "SELECT c.state, ROUND(SUM(f.price), 2) AS revenue\r\n",
+        "FROM workspace.gold.fact_sales f\r\n",
+        "JOIN workspace.gold.dim_customer c ON f.customer_key = c.customer_key\r\n",
+        "WHERE f.order_found AND f.order_status NOT IN ('canceled', 'unavailable')\r\n",
+        "GROUP BY c.state ORDER BY revenue DESC LIMIT 10;"
+      ]
+    },
+    {
+      "name": "60a8bf0c",
+      "displayName": "payment_mix",
+      "queryLines": [
+        "SELECT payment_type, COUNT(DISTINCT order_id) AS orders\r\n",
+        "FROM workspace.gold.fact_sales\r\n",
+        "WHERE order_found\r\n",
+        "GROUP BY payment_type ORDER BY orders DESC;"
+      ]
+    },
+    {
+      "name": "b384e993",
+      "displayName": "customer_type",
+      "queryLines": [
+        "SELECT CASE WHEN orders > 1 THEN 'Repeat' ELSE 'One-time' END AS customer_type,\r\n",
+        "       COUNT(*) AS customers\r\n",
+        "FROM workspace.gold.agg_customer_orders\r\n",
+        "GROUP BY 1;"
+      ]
+    },
+    {
+      "name": "7515252b",
+      "displayName": "data_quality_latest",
+      "queryLines": [
+        "SELECT status, COUNT(*) AS checks\r\n",
+        "FROM workspace.ops.dq_log\r\n",
+        "WHERE run_id = (SELECT run_id FROM workspace.ops.dq_log ORDER BY checked_at DESC LIMIT 1)\r\n",
+        "GROUP BY status;"
+      ]
+    },
+    {
+      "name": "f7c669c0",
+      "displayName": "Daily Revenue & Orders",
+      "queryLines": [
+        "SELECT\n",
+        "  order_date,\n",
+        "  revenue,\n",
+        "  orders\n",
+        "FROM\n",
+        "  workspace.gold.agg_daily_revenue\n",
+        "ORDER BY\n",
+        "  order_date"
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "name": "95883b5e",
+      "displayName": "Retail Sales Overview (Jan-Mar 2018)",
+      "layout": [
+        {
+          "widget": {
+            "name": "total-orders",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "fdb786de",
+                  "fields": [
+                    {
+                      "name": "sum(revenue)",
+                      "expression": "SUM(`revenue`)"
+                    },
+                    {
+                      "name": "sum(late_delivery_pct)",
+                      "expression": "SUM(`late_delivery_pct`)"
+                    },
+                    {
+                      "name": "sum(orders)",
+                      "expression": "SUM(`orders`)"
+                    },
+                    {
+                      "name": "sum(avg_order_value)",
+                      "expression": "SUM(`avg_order_value`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "frame": {
+                "showTitle": true
+              },
+              "version": 2,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "sum(revenue)"
+                  },
+                  {
+                    "fieldName": "sum(late_delivery_pct)"
+                  },
+                  {
+                    "fieldName": "sum(orders)"
+                  },
+                  {
+                    "fieldName": "sum(avg_order_value)"
+                  }
+                ]
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 12,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "daily-revenue-jan-mar-2018",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "a6995f46",
+                  "fields": [
+                    {
+                      "name": "daily(order_date)",
+                      "expression": "DATE_TRUNC(\"DAY\", `order_date`)"
+                    },
+                    {
+                      "name": "sum(revenue)",
+                      "expression": "SUM(`revenue`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "value": "<span style=\"font-weight: 700;\">Daily revenue, Jan-Mar 2018</span>",
+                  "fields": []
+                }
+              },
+              "version": 3,
+              "mark": {
+                "colors": [
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 2
+                  }
+                ]
+              },
+              "widgetType": "line",
+              "encodings": {
+                "x": {
+                  "fieldName": "daily(order_date)",
+                  "scale": {
+                    "type": "temporal"
+                  }
+                },
+                "y": {
+                  "fieldName": "sum(revenue)",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 6,
+            "width": 12,
+            "height": 4
+          }
+        },
+        {
+          "widget": {
+            "name": "top-10-product-categories-revenue",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "1454a2b7",
+                  "fields": [
+                    {
+                      "name": "sum(revenue)",
+                      "expression": "SUM(`revenue`)"
+                    },
+                    {
+                      "name": "category",
+                      "expression": "`category`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "value": "Top 10 product categories by revenue",
+                  "fields": []
+                }
+              },
+              "version": 3,
+              "mark": {
+                "colors": [
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 9
+                  }
+                ]
+              },
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "sum(revenue)",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "y": {
+                  "fieldName": "category",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 7,
+            "y": 2,
+            "width": 5,
+            "height": 4
+          }
+        },
+        {
+          "widget": {
+            "name": "one-time-vs-repeat-customers",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "b384e993",
+                  "fields": [
+                    {
+                      "name": "sum(customers)",
+                      "expression": "SUM(`customers`)"
+                    },
+                    {
+                      "name": "customer_type",
+                      "expression": "`customer_type`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "value": "One-time vs repeat customers",
+                  "fields": []
+                }
+              },
+              "version": 3,
+              "widgetType": "pie",
+              "encodings": {
+                "angle": {
+                  "fieldName": "sum(customers)",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "color": {
+                  "fieldName": "customer_type",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "label": {
+                  "show": true
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 10,
+            "width": 6,
+            "height": 5
+          }
+        },
+        {
+          "widget": {
+            "name": "total-revenue-brl",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "891c048f",
+                  "fields": [
+                    {
+                      "name": "state",
+                      "expression": "`state`"
+                    },
+                    {
+                      "name": "sum(revenue)",
+                      "expression": "SUM(`revenue`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "value": "Top 10 states by revenue",
+                  "fields": []
+                }
+              },
+              "version": 3,
+              "mark": {
+                "colors": [
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 7
+                  }
+                ],
+                "layout": "stack"
+              },
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "state",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "y": {
+                  "primary": {
+                    "fields": [
+                      {
+                        "fieldName": "sum(revenue)"
+                      }
+                    ],
+                    "scale": {
+                      "type": "quantitative"
+                    },
+                    "axis": {
+                      "hideLabels": false,
+                      "hideGrid": false
+                    },
+                    "format": {
+                      "type": "number-currency",
+                      "currencyCode": "USD",
+                      "abbreviation": "compact",
+                      "decimalPlaces": {
+                        "type": "max",
+                        "places": 2
+                      }
+                    }
+                  },
+                  "secondary": {
+                    "fields": [],
+                    "scale": {
+                      "type": "quantitative"
+                    },
+                    "axis": {
+                      "hideGrid": false
+                    }
+                  }
+                },
+                "label": {
+                  "show": false
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 2,
+            "width": 7,
+            "height": 4
+          }
+        },
+        {
+          "widget": {
+            "name": "orders-by-payment-type",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "60a8bf0c",
+                  "fields": [
+                    {
+                      "name": "sum(orders)",
+                      "expression": "SUM(`orders`)"
+                    },
+                    {
+                      "name": "payment_type",
+                      "expression": "`payment_type`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "value": "Orders by payment type",
+                  "fields": []
+                }
+              },
+              "version": 3,
+              "widgetType": "pie",
+              "encodings": {
+                "angle": {
+                  "fieldName": "sum(orders)",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "color": {
+                  "fieldName": "payment_type",
+                  "scale": {
+                    "type": "categorical",
+                    "sort": {
+                      "by": "natural-order"
+                    }
+                  }
+                },
+                "label": {
+                  "show": false
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 6,
+            "y": 10,
+            "width": 6,
+            "height": 5
+          }
+        }
+      ],
+      "pageType": "PAGE_TYPE_CANVAS",
+      "layoutVersion": "GRID_V1"
+    }
+  ],
+  "uiSettings": {
+    "theme": {
+      "widgetHeaderAlignment": "ALIGNMENT_UNSPECIFIED"
+    },
+    "applyModeEnabled": false
+  }
+}
