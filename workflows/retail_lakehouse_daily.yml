@@ -1,0 +1,30 @@
+resources:
+  jobs:
+    retail_lakehouse_daily:
+      name: retail_lakehouse_daily
+      tasks:
+        - task_key: bronze_ingest
+          notebook_task:
+            notebook_path: /Workspace/Users/@gmail.com/pipeline/10_bronze
+            source: WORKSPACE
+        - task_key: silver_transform
+          depends_on:
+            - task_key: bronze_ingest
+          notebook_task:
+            notebook_path: /Workspace/Users/@gmail.com/pipeline/20_silver
+            source: WORKSPACE
+        - task_key: gold_build
+          depends_on:
+            - task_key: silver_transform
+          notebook_task:
+            notebook_path: /Workspace/Users/@gmail.com/pipeline/30_gold
+            source: WORKSPACE
+        - task_key: data_quality
+          depends_on:
+            - task_key: gold_build
+          notebook_task:
+            notebook_path: /Workspace/Users/@gmail.com/pipeline/40_data_quality
+            source: WORKSPACE
+      queue:
+        enabled: true
+      performance_target: PERFORMANCE_OPTIMIZED
